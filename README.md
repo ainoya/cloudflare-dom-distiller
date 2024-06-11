@@ -19,7 +19,10 @@ npx wrangler dev --remote
 You can make a request to your local server and verify that the content of the target web page is converted to Markdown format:
 
 ```bash
-curl -H 'Content-Type: application/json' -X POST http://localhost:8787/distill -d '{"url": "https://blog.samaltman.com/gpt-4o", "markdown": true}'
+$ curl -H 'Content-Type: application/json' \
+ -X POST http://localhost:8787/distill \
+ -d '{"url": "https://blog.samaltman.com/gpt-4o", "markdown": true}'
+
 {"body":"There ... to the team that poured so much work into making this happen!"}
 ```
 
