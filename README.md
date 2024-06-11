@@ -1,4 +1,4 @@
-# DOM Distiller API
+# Cloudflare DOM Distiller
 
 This repository provides an API implementation for easily retrieving content from target web pages on Cloudflare Workers.
 
