@@ -65,9 +65,34 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 type Bindings = {
 	MYBROWSER: BrowserWorker;
+	SERVICE_API_KEY?: string;
 };
 
-app.get('/', (c) => c.text('Hono!'));
+// set bearer auth if SERVICE_API_KEY is set
+app.use(async (c, next) => {
+	const serviceApiKey = c.env.SERVICE_API_KEY;
+	// bypass auth if SERVICE_API_KEY is not set
+	if (!serviceApiKey) {
+		return await next();
+	}
+
+	const authHeader = c.req.header('Authorization');
+	if (!authHeader) {
+		return c.text('Authorization header is missing', { status: 401 });
+	}
+
+	const [authType, authValue] = authHeader.split(' ');
+
+	if (authType !== 'Bearer') {
+		return c.text('Invalid authorization type', { status: 401 });
+	}
+
+	if (authValue !== serviceApiKey) {
+		return c.text('Invalid API key', { status: 401 });
+	}
+
+	return await next();
+});
 
 app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 	const req = c.req.valid('json');
