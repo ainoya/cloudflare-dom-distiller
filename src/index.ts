@@ -1,36 +1,71 @@
 import puppeteer, { BrowserWorker } from '@cloudflare/puppeteer';
 
-async function scrapeAndDistill(browserWorker: puppeteer.BrowserWorker, url: string, markdown: boolean): Promise<string> {
+import { Hono } from 'hono';
+import { domdistillerJsBundle } from './third_party/dom-distiller/domdistiller';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { turndownJsBundle } from './third_party/turndown-client/turndown';
+import { turndownPluginGfmJsBundle } from './third_party/turndown-client/turndown-plugin-gfm';
+// @ts-ignore
+import { readabilityJsBundle } from './third_party/readability/readability';
+
+async function scrapeAndDistill(
+	browserWorker: puppeteer.BrowserWorker,
+	url: string,
+	markdown: boolean,
+	useReadability: boolean
+): Promise<string> {
 	const browser = await puppeteer.launch(browserWorker);
 	try {
 		const page = await browser.newPage();
 		await page.goto(url, { waitUntil: 'networkidle2' });
 
 		// load the DOM Distiller script
-		const distillerScript = domdistillerJsBundle;
-		console.debug('Injecting DOM Distiller script');
-		await page.evaluate(distillerScript);
-
-		// run the DOM Distiller script
-		console.debug('Running DOM Distiller');
-		const distilledContent = await page.evaluate(() => {
-			// @ts-ignore
-			return org.chromium.distiller.DomDistiller.apply();
-		});
-
-		console.debug('Distilled content:', distilledContent);
-
-		// console.log(distilledContent);
-		const content = distilledContent[2][1];
-
-		console.debug('Content:', content);
+		const content = useReadability ? await extractWithReadability(page) : await extractWithDomDistiller(page);
 
 		if (markdown) {
 			await page.evaluate(turndownJsBundle);
+			await page.evaluate(turndownPluginGfmJsBundle);
 			await page.evaluate(`var content = ${JSON.stringify(content)};`);
 			const markdown = await page.evaluate(() => {
 				// @ts-ignore
-				const turndownService = new TurndownService();
+				const turndownService = new TurndownService({
+					codeBlockStyle: 'fenced',
+					preformattedCode: true,
+				});
+
+				// @ts-ignore
+				turndownService.use(turndownPluginGfm.gfm);
+
+				// https://github.com/mixmark-io/turndown/issues/192#issuecomment-1242819018
+				// @ts-ignore
+				const getExt = (node) => {
+					// Simple match where the <pre> has the `highlight-source-js` tags
+					// @ts-ignore
+					const getFirstTag = (node) => node.outerHTML.split('>').shift() + '>';
+					const match = getFirstTag(node).match(/highlight-source-[a-z]+/);
+					if (match) return match[0].split('-').pop();
+
+					// More complex match where the _parent_ (single) has that.
+					// The parent of the <pre> is not a "wrapping" parent, so skip those
+					if (node.parentNode.childNodes.length !== 1) return '';
+
+					// Check the parent just in case
+					const parent = getFirstTag(node.parentNode).match(/highlight-source-[a-z]+/);
+					if (parent) return parent[0].split('-').pop();
+
+					// Nothing was found...
+					return '';
+				};
+				turndownService.addRule('fenceAllPreformattedText', {
+					filter: ['pre'],
+					// @ts-ignore
+					replacement: function (content, node) {
+						const ext = getExt(node);
+						const code = [...node.childNodes].map((c) => c.textContent).join('');
+						return '\n```' + ext + '\n' + code + '\n```\n\n';
+					},
+				});
 				// @ts-ignore
 				return turndownService.turndown(content);
 			});
@@ -46,6 +81,7 @@ async function scrapeAndDistill(browserWorker: puppeteer.BrowserWorker, url: str
 const DistillRequestSchema = z.object({
 	url: z.string(),
 	markdown: z.boolean(),
+	useReadability: z.boolean().optional(),
 });
 
 type Request = z.infer<typeof DistillRequestSchema>;
@@ -55,12 +91,6 @@ const DistillResponseSchema = z.object({
 });
 
 type Response = z.infer<typeof DistillResponseSchema>;
-
-import { Hono } from 'hono';
-import { domdistillerJsBundle } from './third_party/dom-distiller/domdistiller';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { turndownJsBundle } from './third_party/turndown-client/turndown';
 const app = new Hono<{ Bindings: Bindings }>();
 
 type Bindings = {
@@ -106,9 +136,10 @@ app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 		return c.text('The browser worker is busy', { status: 429 });
 	}
 
-	const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown);
+	// by default, use readability
+	const useReadability = req.useReadability ?? true;
 
-	console.debug('Distilled:', distilled);
+	const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown, useReadability);
 
 	const res: Response = {
 		body: distilled,
@@ -116,5 +147,41 @@ app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 
 	return c.json(res);
 });
+
+async function extractWithDomDistiller(page: puppeteer.Page) {
+	const distillerScript = domdistillerJsBundle;
+	console.debug('Injecting DOM Distiller script');
+	await page.evaluate(distillerScript);
+
+	// run the DOM Distiller script
+	console.debug('Running DOM Distiller');
+	const distilledContent = await page.evaluate(() => {
+		// @ts-ignore
+		return org.chromium.distiller.DomDistiller.apply();
+	});
+
+	console.debug('Distilled content:', distilledContent);
+
+	// console.log(distilledContent);
+	const content = distilledContent[2][1];
+	return content;
+}
+
+async function extractWithReadability(page: puppeteer.Page) {
+	const readabilityScript = readabilityJsBundle;
+
+	console.debug('Injecting Readability script');
+	await page.evaluate(readabilityScript);
+
+	// run the Readability script
+	console.debug('Running Readability');
+	const content = await page.evaluate(() => {
+		// @ts-ignore
+		const article = new Readability(document).parse();
+		return article.content;
+	});
+
+	return content;
+}
 
 export default app;

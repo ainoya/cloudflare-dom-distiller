@@ -5,7 +5,8 @@ This repository provides an API implementation for easily retrieving content fro
 ## Features
 
 - **Cloudflare Workers & Browser Rendering**: Utilizes Cloudflare Workers and browser rendering to fetch page information.
-- **DOM-Distiller**: Uses dom-distiller to extract page content and remove unnecessary information.
+- **Readability**: Uses Readability to extract page content and remove unnecessary information.
+- **DOM-Distiller**: If you set option `useReadability: false` in a request, uses dom-distiller to extract page content and remove unnecessary information.
 - **Turndown**: Converts the extracted HTML to Markdown format for better readability.
 
 ## Example Usage
@@ -40,5 +41,6 @@ $ curl -H 'Content-Type: application/json' \
 ## References
 
 - [mixmark\-io/turndown: 🛏 An HTML to Markdown converter written in JavaScript](https://github.com/mixmark-io/turndown)
+- [mozilla/readability: A standalone version of the readability lib](https://github.com/mozilla/readability)
 - [chromium/dom\-distiller: Distills the DOM](https://github.com/chromium/dom-distiller)
 - [Puppeteer · Browser Rendering docs](https://developers.cloudflare.com/browser-rendering/platform/puppeteer/)
