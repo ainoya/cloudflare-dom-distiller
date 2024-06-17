@@ -5,6 +5,8 @@ import { domdistillerJsBundle } from './third_party/dom-distiller/domdistiller';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { turndownJsBundle } from './third_party/turndown-client/turndown';
+import { turndownPluginGfmJsBundle } from './third_party/turndown-client/turndown-plugin-gfm';
+// @ts-ignore
 import { readabilityJsBundle } from './third_party/readability/readability';
 
 async function scrapeAndDistill(
@@ -23,6 +25,7 @@ async function scrapeAndDistill(
 
 		if (markdown) {
 			await page.evaluate(turndownJsBundle);
+			await page.evaluate(turndownPluginGfmJsBundle);
 			await page.evaluate(`var content = ${JSON.stringify(content)};`);
 			const markdown = await page.evaluate(() => {
 				// @ts-ignore
@@ -30,6 +33,9 @@ async function scrapeAndDistill(
 					codeBlockStyle: 'fenced',
 					preformattedCode: true,
 				});
+
+				// @ts-ignore
+				turndownService.use(turndownPluginGfm.gfm);
 
 				// https://github.com/mixmark-io/turndown/issues/192#issuecomment-1242819018
 				// @ts-ignore
