@@ -98,6 +98,14 @@ app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 	const req = c.req.valid('json');
 
 	const browserWorker = c.env.MYBROWSER;
+
+	// return 429 if the browser worker is busy
+	// https://github.com/cloudflare/puppeteer/blob/808f08afdd25ee49a267479f05eecd0a1b3edf0a/src/puppeteer-core.ts#L86
+	const limits = await puppeteer.limits(browserWorker);
+	if (limits.allowedBrowserAcquisitions < 1) {
+		return c.text('The browser worker is busy', { status: 429 });
+	}
+
 	const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown);
 
 	console.debug('Distilled:', distilled);
