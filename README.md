@@ -8,6 +8,7 @@ This repository provides an API implementation for easily retrieving content fro
 - **Readability**: Uses Readability to extract page content and remove unnecessary information.
 - **DOM-Distiller**: If you set option `useReadability: false` in a request, uses dom-distiller to extract page content and remove unnecessary information.
 - **Turndown**: Converts the extracted HTML to Markdown format for better readability.
+- **CSS skipping**: Set `disableCss: true` in a request to prevent loading CSS files during rendering.
 
 ## Example Usage
 
@@ -33,6 +34,8 @@ $ curl -H 'Content-Type: application/json' \
 
 - **url**: The URL of the target web page to fetch content from.
 - **markdown**: Boolean value to indicate whether the content should be converted to Markdown format.
+- **useReadability**: Optional boolean to switch between Readability and DOM Distiller (default is `true`).
+- **disableCss**: Optional boolean to disable CSS loading during rendering.
 
 ### Response Format
 
