@@ -7,9 +7,10 @@ import { z } from 'zod';
 import { scrapeAndDistill } from './distiller';
 
 const DistillRequestSchema = z.object({
-	url: z.string(),
-	markdown: z.boolean(),
-	useReadability: z.boolean().optional(),
+        url: z.string(),
+        markdown: z.boolean(),
+        useReadability: z.boolean().optional(),
+        disableCss: z.boolean().optional(),
 });
 
 type Request = z.infer<typeof DistillRequestSchema>;
@@ -67,10 +68,11 @@ app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 		});
 	}
 
-	// by default, use readability
-	const useReadability = req.useReadability ?? true;
+        // by default, use readability and load CSS
+        const useReadability = req.useReadability ?? true;
+        const disableCss = req.disableCss ?? false;
 
-	const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown, useReadability);
+        const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown, useReadability, disableCss);
 
 	const res: Response = {
 		body: distilled,
