@@ -1,4 +1,4 @@
-import puppeteer from '@cloudflare/puppeteer';
+import puppeteer, { BrowserWorker, Page, ActiveSession } from '@cloudflare/puppeteer';
 
 // @ts-ignore
 import { readabilityJsBundle } from './third_party/readability/readability';
@@ -9,7 +9,7 @@ import { turndownPluginGfmJsBundle } from './third_party/turndown-client/turndow
 import { readabilityJsBundle } from './third_party/readability/readability';
 
 export async function scrapeAndDistill(
-	browserWorker: puppeteer.BrowserWorker,
+	browserWorker: BrowserWorker,
 	url: string,
 	markdown: boolean,
 	useReadability: boolean
@@ -77,7 +77,7 @@ export async function scrapeAndDistill(
 	}
 }
 
-async function extractWithDomDistiller(page: puppeteer.Page) {
+async function extractWithDomDistiller(page: Page) {
 	const distillerScript = domdistillerJsBundle;
 	console.debug('Injecting DOM Distiller script');
 	await page.evaluate(distillerScript);
@@ -96,7 +96,7 @@ async function extractWithDomDistiller(page: puppeteer.Page) {
 	return content;
 }
 
-async function extractWithReadability(page: puppeteer.Page) {
+async function extractWithReadability(page: Page) {
 	const readabilityScript = readabilityJsBundle;
 
 	console.debug('Injecting Readability script');
@@ -116,8 +116,8 @@ async function extractWithReadability(page: puppeteer.Page) {
 // Pick random free session
 // Other custom logic could be used instead
 // https://developers.cloudflare.com/browser-rendering/get-started/reuse-sessions/
-async function getRandomSession(endpoint: puppeteer.BrowserWorker): Promise<string | undefined> {
-	const sessions: puppeteer.ActiveSession[] = await puppeteer.sessions(endpoint);
+async function getRandomSession(endpoint: BrowserWorker): Promise<string | undefined> {
+	const sessions: ActiveSession[] = await puppeteer.sessions(endpoint);
 	console.log(`Sessions: ${JSON.stringify(sessions)}`);
 	const sessionsIds = sessions
 		.filter((v) => {
@@ -135,7 +135,7 @@ async function getRandomSession(endpoint: puppeteer.BrowserWorker): Promise<stri
 	return sessionId!;
 }
 
-async function pickRandomSession(browserWorker: puppeteer.BrowserWorker) {
+async function pickRandomSession(browserWorker: BrowserWorker) {
 	// Pick random session from open sessions
 	let sessionId = await getRandomSession(browserWorker);
 	let browser, launched;
