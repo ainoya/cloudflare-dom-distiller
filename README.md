@@ -1,3 +1,7 @@
+> [!NOTE]
+> https://developers.cloudflare.com/browser-rendering/rest-api/
+> What this repository does is almost the same as what is officially supported by the `/markdown` endpoint, so please consider using that instead.
+
 # Cloudflare DOM Distiller
 
 This repository provides an API implementation for easily retrieving content from target web pages on Cloudflare Workers.

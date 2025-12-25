@@ -17,7 +17,11 @@ export async function scrapeAndDistill(
 	const { browser } = await pickRandomSession(browserWorker);
 	try {
 		const page = await browser.newPage();
+		page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
+		// @ts-ignore
 		await page.goto(url, { waitUntil: 'networkidle2' });
+		// @ts-ignore
+		await page.evaluate(() => (window.__name = (n, v) => v));
 
 		// load the DOM Distiller script
 		const content = useReadability ? await extractWithReadability(page) : await extractWithDomDistiller(page);
@@ -38,33 +42,42 @@ export async function scrapeAndDistill(
 
 				// https://github.com/mixmark-io/turndown/issues/192#issuecomment-1242819018
 				// @ts-ignore
-				const getExt = (node) => {
-					// Simple match where the <pre> has the `highlight-source-js` tags
-					// @ts-ignore
-					const getFirstTag = (node) => node.outerHTML.split('>').shift() + '>';
-					const match = getFirstTag(node).match(/highlight-source-[a-z]+/);
-					if (match) return match[0].split('-').pop();
+				function getExt(node) {
+					try {
+						// Simple match where the <pre> has the `highlight-source-js` tags
+						// @ts-ignore
+						function getFirstTag(node) {
+							return node.outerHTML.split('>').shift() + '>';
+						}
+						const match = getFirstTag(node).match(/highlight-source-[a-z]+/);
+						if (match) return match[0].split('-').pop();
 
-					// More complex match where the _parent_ (single) has that.
-					// The parent of the <pre> is not a "wrapping" parent, so skip those
-					if (node.parentNode.childNodes.length !== 1) return '';
+						// More complex match where the _parent_ (single) has that.
+						// The parent of the <pre> is not a "wrapping" parent, so skip those
+						if (node.parentNode.childNodes.length !== 1) return '';
 
-					// Check the parent just in case
-					const parent = getFirstTag(node.parentNode).match(/highlight-source-[a-z]+/);
-					if (parent) return parent[0].split('-').pop();
-
+						// Check the parent just in case
+						const parent = getFirstTag(node.parentNode).match(/highlight-source-[a-z]+/);
+						if (parent) return parent[0].split('-').pop();
+					} catch (e) {
+						return '';
+					}
 					// Nothing was found...
 					return '';
-				};
-				turndownService.addRule('fenceAllPreformattedText', {
-					filter: ['pre'],
+				}
+
+				const rule = {};
+				// @ts-ignore
+				rule['filter'] = ['pre'];
+				// @ts-ignore
+				rule['replacement'] = function (content, node) {
+					const ext = getExt(node);
 					// @ts-ignore
-					replacement: function (content, node) {
-						const ext = getExt(node);
-						const code = [...node.childNodes].map((c) => c.textContent).join('');
-						return '\n```' + ext + '\n' + code + '\n```\n\n';
-					},
-				});
+					const code = [...node.childNodes].map((c) => c.textContent).join('');
+					return '\n```' + ext + '\n' + code + '\n```\n\n';
+				};
+
+				turndownService.addRule('fenceAllPreformattedText', rule);
 				// @ts-ignore
 				return turndownService.turndown(content);
 			});

@@ -70,13 +70,18 @@ app.post('/distill', zValidator('json', DistillRequestSchema), async (c) => {
 	// by default, use readability
 	const useReadability = req.useReadability ?? true;
 
-	const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown, useReadability);
+	try {
+		const distilled = await scrapeAndDistill(browserWorker, req.url, req.markdown, useReadability);
 
-	const res: Response = {
-		body: distilled,
-	};
+		const res: Response = {
+			body: distilled,
+		};
 
-	return c.json(res);
+		return c.json(res);
+	} catch (e: any) {
+		console.error(e);
+		return c.text(e.message || 'Internal Server Error', 500);
+	}
 });
 
 export default app;
