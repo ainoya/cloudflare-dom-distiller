@@ -1,23 +1,34 @@
-import puppeteer from '@cloudflare/puppeteer';
+import puppeteer, { type BrowserWorker, type Page, type ActiveSession } from '@cloudflare/puppeteer';
 
 // @ts-ignore
 import { readabilityJsBundle } from './third_party/readability/readability';
 import { domdistillerJsBundle } from './third_party/dom-distiller/domdistiller';
 import { turndownJsBundle } from './third_party/turndown-client/turndown';
 import { turndownPluginGfmJsBundle } from './third_party/turndown-client/turndown-plugin-gfm';
-// @ts-ignore
-import { readabilityJsBundle } from './third_party/readability/readability';
 
 export async function scrapeAndDistill(
-	browserWorker: puppeteer.BrowserWorker,
-	url: string,
-	markdown: boolean,
-	useReadability: boolean
+        browserWorker: BrowserWorker,
+        url: string,
+        markdown: boolean,
+        useReadability: boolean,
+        disableCss: boolean
 ): Promise<string> {
-	const { browser } = await pickRandomSession(browserWorker);
-	try {
-		const page = await browser.newPage();
-		await page.goto(url, { waitUntil: 'networkidle2' });
+        const { browser } = await pickRandomSession(browserWorker);
+        try {
+                const page = await browser.newPage();
+
+                if (disableCss) {
+                        await page.setRequestInterception(true);
+                        page.on('request', (request) => {
+                                if (request.resourceType() === 'stylesheet') {
+                                        request.abort();
+                                } else {
+                                        request.continue();
+                                }
+                        });
+                }
+
+                await page.goto(url, { waitUntil: 'networkidle2' });
 
 		// load the DOM Distiller script
 		const content = useReadability ? await extractWithReadability(page) : await extractWithDomDistiller(page);
@@ -77,7 +88,7 @@ export async function scrapeAndDistill(
 	}
 }
 
-async function extractWithDomDistiller(page: puppeteer.Page) {
+async function extractWithDomDistiller(page: Page) {
 	const distillerScript = domdistillerJsBundle;
 	console.debug('Injecting DOM Distiller script');
 	await page.evaluate(distillerScript);
@@ -96,7 +107,7 @@ async function extractWithDomDistiller(page: puppeteer.Page) {
 	return content;
 }
 
-async function extractWithReadability(page: puppeteer.Page) {
+async function extractWithReadability(page: Page) {
 	const readabilityScript = readabilityJsBundle;
 
 	console.debug('Injecting Readability script');
@@ -116,8 +127,8 @@ async function extractWithReadability(page: puppeteer.Page) {
 // Pick random free session
 // Other custom logic could be used instead
 // https://developers.cloudflare.com/browser-rendering/get-started/reuse-sessions/
-async function getRandomSession(endpoint: puppeteer.BrowserWorker): Promise<string | undefined> {
-	const sessions: puppeteer.ActiveSession[] = await puppeteer.sessions(endpoint);
+async function getRandomSession(endpoint: BrowserWorker): Promise<string | undefined> {
+        const sessions: ActiveSession[] = await puppeteer.sessions(endpoint);
 	console.log(`Sessions: ${JSON.stringify(sessions)}`);
 	const sessionsIds = sessions
 		.filter((v) => {
@@ -135,7 +146,7 @@ async function getRandomSession(endpoint: puppeteer.BrowserWorker): Promise<stri
 	return sessionId!;
 }
 
-async function pickRandomSession(browserWorker: puppeteer.BrowserWorker) {
+async function pickRandomSession(browserWorker: BrowserWorker) {
 	// Pick random session from open sessions
 	let sessionId = await getRandomSession(browserWorker);
 	let browser, launched;
