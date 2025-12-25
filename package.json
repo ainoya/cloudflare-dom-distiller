@@ -11,7 +11,7 @@
     "cf-typegen": "wrangler types"
   },
   "devDependencies": {
-    "@cloudflare/puppeteer": "^0.0.14",
+    "@cloudflare/puppeteer": "^0.0.15",
     "@cloudflare/vitest-pool-workers": "^0.1.0",
     "@cloudflare/workers-types": "^4.20240605.0",
     "@types/turndown": "^5.0.4",
