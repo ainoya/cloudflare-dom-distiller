@@ -5,6 +5,11 @@ export default defineWorkersConfig({
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: './wrangler.toml' },
+				miniflare: {
+					bindings: {
+						SERVICE_API_KEY: 'test-key',
+					},
+				},
 			},
 		},
 	},
