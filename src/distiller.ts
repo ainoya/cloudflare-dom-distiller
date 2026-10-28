@@ -5,8 +5,6 @@ import { readabilityJsBundle } from './third_party/readability/readability';
 import { domdistillerJsBundle } from './third_party/dom-distiller/domdistiller';
 import { turndownJsBundle } from './third_party/turndown-client/turndown';
 import { turndownPluginGfmJsBundle } from './third_party/turndown-client/turndown-plugin-gfm';
-// @ts-ignore
-import { readabilityJsBundle } from './third_party/readability/readability';
 
 export async function scrapeAndDistill(
 	browserWorker: BrowserWorker,
